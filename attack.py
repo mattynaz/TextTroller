@@ -12,14 +12,14 @@ def attack(
     importance_score_threshold: float = -1.0,
     sim_score_threshold: float = 0.05,
     sim_score_window: int = 15,
-    synonym_num: int = 48,
+    synonym_num: int = 12,
 ):
     num_calls = 0
 
     def predict(prompts: list[str]):
         num_calls += len(prompts)
         responses = target_model.generate(prompts)
-        return judge_model.judge(responses), responses
+        return judge_model.judge(responses, prompt), responses
 
     # Get the original prediction and its confidence
     original_label_probs, original_response = predict([prompt])
