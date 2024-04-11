@@ -9,9 +9,9 @@ import numpy as np
 import json
 
 parser = argparse.ArgumentParser(description='Prepare troll.')
-parser.add_argument('--idx2word_path', type=str, required=True, default='idx2word.json')
-parser.add_argument('--word2idx_path', type=str, required=True, default='word2idx.json')
-parser.add_argument('--cos_similarities_path', type=str, required=True, default='cos_similarities.npy')
+parser.add_argument('--idx2word_path', type=str, default='idx2word.json')
+parser.add_argument('--word2idx_path', type=str, default='word2idx.json')
+parser.add_argument('--cos_similarities_path', type=str, default='cos_similarities.npy')
 args = parser.parse_args()
 
 
