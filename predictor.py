@@ -2,12 +2,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 def make_predictor(target_model: str, judge_model: str):
-    target_tokenizer = AutoTokenizer.from_pretrained(target_model)
     target_model = AutoModelForCausalLM.from_pretrained(target_model)
+    target_tokenizer = AutoTokenizer.from_pretrained(target_model)
     target_tokenizer.pad_token = target_tokenizer.eos_token
 
-    judge_tokenizer = AutoTokenizer.from_pretrained(judge_model)
     judge_model = AutoModelForCausalLM.from_pretrained(judge_model)
+    judge_tokenizer = AutoTokenizer.from_pretrained(judge_model)
     judge_tokenizer.pad_token_id = judge_tokenizer.eos_token_id
 
     def generate_responses(prompts, max_new_tokens=50):
