@@ -10,10 +10,11 @@ from util import stop_words_set, get_pos, pos_filter, index_to_word, word_to_ind
 def attack(
     prompt: str,
     importance_score_threshold: float = -1.0,
-    sim_score_threshold: float = 0.1,
+    sim_score_threshold: float = 0.05,
     sim_score_window: int = 15,
     synonym_num: int = 48,
 ):
+    num_calls = 0
 
     def predict(prompts: list[str]):
         responses = target_model.generate(prompts)
@@ -21,6 +22,7 @@ def attack(
 
     # Get the original prediction and its confidence
     original_label_probs, original_response = predict([prompt])
+    num_calls += 1
     original_label_probs = original_label_probs.squeeze()
     original_label = original_label_probs.argmax().item()
     original_label_confidence = original_label_probs.max()
@@ -37,6 +39,7 @@ def attack(
     perturbed_prompts_tokens = [prompt_tokens[:i] + ['<oov>'] + prompt_tokens[i+1:] for i in range(len(prompt_tokens))]
     perturbed_prompts = [' '.join(t for t in tokens if t != '<oov>') for tokens in perturbed_prompts_tokens]
     perturbed_labels_probs, _ = predict(perturbed_prompts)
+    num_calls += len(perturbed_prompts)
     perturbed_labels = perturbed_labels_probs.argmax(dim=-1)
 
     # Calculate importance scores for each token
@@ -66,6 +69,7 @@ def attack(
         perturbed_prompts_tokens = [modified_prompt_tokens[:i] + [synonym] + modified_prompt_tokens[i+1:] for synonym in synonyms]
         perturbed_prompts = [' '.join(tokens) for tokens in perturbed_prompts_tokens]
         perturbed_labels_probs, _ = predict(perturbed_prompts)
+        num_calls += len(perturbed_prompts)
 
         # Calculate semantic similarity for potential replacements
         text_range_min, text_range_max = calculate_text_range(i, len(prompt_tokens), half_sim_score_window, sim_score_window)
@@ -91,7 +95,8 @@ def attack(
     # Finalize and return the results
     attacked_prompt = ' '.join(modified_prompt_tokens)
     _, attacked_response = predict([attacked_prompt])
-    return original_response, attacked_prompt, attacked_response
+    num_calls += 1
+    return original_response, attacked_prompt, attacked_response, num_calls
 
 
 def calculate_text_range(current_index, text_length, half_window_size, full_window_size):
