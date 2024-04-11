@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     similarity_predictor = SimilarityPredictor()
 
-    predictor = make_predictor(args.target_model, args.judge_model)
+    predictor, _, _ = make_predictor(args.target_model, args.judge_model)
 
     new_prompt, original_label, new_label = attack(
         prompt=args.prompt,

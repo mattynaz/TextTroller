@@ -48,4 +48,4 @@ def make_predictor(target_model: str, judge_model: str):
         responses = generate_responses(prompts)
         return judge_responses(responses)
 
-    return predictor
+    return predictor, generate_responses, judge_responses
