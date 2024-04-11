@@ -130,7 +130,7 @@ def pick_most_similar_words_batch(
     return_count: int = 10, 
     similarity_threshold: float = 0.0
 ) -> Tuple[List[List[str]], List[np.ndarray]]:
-    source_word_indices = [word_to_index[word] for _, word in source_words if word]
+    source_word_indices = [word_to_index[word] for _, word in source_words if word in word_to_index]
     
     # Determine the top most similar word indices for each source word, including the source word itself.
     top_indices = np.argsort(-similarity_matrix[source_word_indices, :], axis=1)[:, :return_count + 1]
