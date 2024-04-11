@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     new_prompt, original_label, new_label = attack(
         prompt=args.prompt,
-        true_label=0,
+        true_label=1,
         predictor=predictor,
         stop_words_set=None,
         idx2word=idx2word,
