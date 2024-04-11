@@ -7,12 +7,12 @@ def main():
             if prompt.lower() == 'exit':
                 break
 
-            new_prompt, original_label, new_label = attack(prompt)
+            original_response, attacked_prompt, attacked_response = attack(prompt)
 
-            print(f"Original prompt: {prompt}")
-            print(f"Original label: {original_label}")
-            print(f"Perturbed prompt: {new_prompt}")
-            print(f"New label: {new_label}")
+            print(f"Original prompt:   {prompt}")
+            print(f"Original response: {original_response}")
+            print(f"Attacked prompt:   {attacked_prompt}")
+            print(f"Attacked response: {attacked_response}")
         except Exception as e:
             print(f"An error occurred: {e}")
 

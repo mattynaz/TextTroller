@@ -91,7 +91,7 @@ def attack(
     # Finalize and return the results
     attacked_prompt = ' '.join(modified_prompt_tokens)
     _, attacked_response = predict([attacked_prompt])
-    return prompt, original_response, attacked_prompt, attacked_response
+    return original_response, attacked_prompt, attacked_response
 
 
 def calculate_text_range(current_index, text_length, half_window_size, full_window_size):
