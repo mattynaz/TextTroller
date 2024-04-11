@@ -1,3 +1,4 @@
+import torch
 import tensorflow as tf
 import tensorflow_hub as hub
 
@@ -10,4 +11,6 @@ def similarity(sentences1, sentences2):
     cosine_similarities = tf.reduce_sum(tf.multiply(sts_encode1, sts_encode2), axis=1)
     clip_cosine_similarities = tf.clip_by_value(cosine_similarities, -1.0, 1.0)
     sim_scores = 1.0 - tf.acos(clip_cosine_similarities)
+    sim_scores = torch.from_numpy(sim_scores.numpy())
+
     return sim_scores

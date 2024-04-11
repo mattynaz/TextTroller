@@ -31,7 +31,7 @@ def attack(
     
     # Get the part-of-speech tagger and compatibility checker
     prompt_tokens = word_tokenize(prompt)
-    # prompt_tokens_pos = criteria.get_pos(prompt_tokens)
+    prompt_tokens_pos = get_pos(prompt_tokens)
 
     # Adjust the similarity threshold for shorter texts
     adjusted_sim_score_threshold = 0.1 if len(prompt_tokens) < sim_score_window else sim_score_threshold
@@ -65,7 +65,6 @@ def attack(
     
     # Attempt to replace words with their synonyms to alter the model's prediction
     modified_prompt_tokens = prompt_tokens.copy()  # Initialize modified text with original text
-    modified_prompt_tokens_cache = prompt_tokens.copy()  # Initialize modified text with original text
     for i, synonyms in synonyms_for_perturbation:
         # For each synonym, create new text versions and predict their labels
         perturbed_prompts_tokens = [modified_prompt_tokens[:i] + [synonym] + modified_prompt_tokens[i+1:] for synonym in synonyms]
@@ -75,16 +74,36 @@ def attack(
         # Calculate semantic similarity for potential replacements
         text_range_min, text_range_max = calculate_text_range(i, len(prompt_tokens), half_sim_score_window, sim_score_window)
         original_text_segment = ' '.join(modified_prompt_tokens[text_range_min:text_range_max])
-        new_variant_segments = [' '.join(prompt[text_range_min:text_range_max]) for prompt in perturbed_prompts]
+        new_variant_segments = [' '.join(tokens[text_range_min:text_range_max]) for tokens in perturbed_prompts_tokens]
         semantic_similarities = semantic_similarity.similarity([original_text_segment] * len(perturbed_prompts), new_variant_segments)
+        
+        perturbed_labels_probs_mask = (original_label != perturbed_labels_probs.argmax(dim=-1)).data.cpu().numpy()
+        # prevent bad synonyms
+        perturbed_labels_probs_mask *= (semantic_similarities >= sim_score_threshold)
+        # prevent incompatible pos
+        synonyms_pos_ls = [get_pos(tokens[max(i - 4, 0):i + 5])[min(4, i)]
+                            if len(tokens) > 10 else get_pos(tokens)[i] for tokens in perturbed_prompts_tokens]
+        pos_mask = np.array(pos_filter(prompt_tokens_pos[i], synonyms_pos_ls))
+        perturbed_labels_probs_mask *= pos_mask
 
-        # Apply filters based on semantic similarity and POS compatibility
-        valid_replacements = find_valid_replacements(perturbed_labels_probs, original_label, semantic_similarities, sim_score_threshold, synonyms, prompt_tokens, i)
+        if np.sum(perturbed_labels_probs_mask) > 0:
+            modified_prompt_tokens[i] = synonyms[(perturbed_labels_probs_mask * semantic_similarities).argmax()]
+            num_changed += 1
+            break
+        else:
+            new_label_probs = perturbed_labels_probs[:, original_label] + torch.from_numpy(
+                    (semantic_similarities < sim_score_threshold) + (1 - pos_mask).astype(float)).float().cuda()
+            new_label_prob_min, new_label_prob_argmin = torch.min(new_label_probs, dim=-1)
+            if new_label_prob_min < original_label_confidence:
+                modified_prompt_tokens[i] = synonyms[new_label_prob_argmin]
 
-        if valid_replacements:
-            best_replacement = valid_replacements[0]  # Assuming find_valid_replacements returns a sorted list
-            modified_prompt_tokens[i] = best_replacement
-            break  # Optionally, stop after one successful change
+        # # Apply filters based on semantic similarity and POS compatibility
+        # valid_replacements = find_valid_replacements(perturbed_labels_probs, original_label, semantic_similarities, sim_score_threshold, synonyms, prompt_tokens, i)
+
+        # if valid_replacements:
+        #     best_replacement = valid_replacements[0]  # Assuming find_valid_replacements returns a sorted list
+        #     modified_prompt_tokens[i] = best_replacement
+        #     break  # Optionally, stop after one successful change
 
     # Finalize and return the results
     new_label = predict([modified_prompt_tokens]).argmax().item()
