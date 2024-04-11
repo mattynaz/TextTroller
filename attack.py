@@ -9,7 +9,6 @@ from util import stop_words_set, get_pos, pos_filter, index_to_word, word_to_ind
 
 def attack(
     prompt: str,
-    true_label: int,
     importance_score_threshold: float = -1.0,
     sim_score_threshold: float = 0.1,
     sim_score_window: int = 15,
@@ -26,10 +25,6 @@ def attack(
     original_label = original_label_probs.argmax().item()
     original_label_confidence = original_label_probs.max()
 
-    # Return early if the original prediction is incorrect
-    if true_label != original_label:
-        return prompt, original_label, original_label
-    
     # Get the part-of-speech tagger and compatibility checker
     prompt_tokens = word_tokenize(prompt)
     prompt_tokens_pos = get_pos(prompt_tokens)
