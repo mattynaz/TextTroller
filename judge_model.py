@@ -31,9 +31,9 @@ def judge(responses: list[str], original_prompt: str) -> torch.Tensor:
 
 def generate_synonyms(words: list[str], part_of_speechs: list[str], num_synonyms: int) -> list[list[str]]:
     prompts = [
-        f"[INST]You must respond with only a comma seperated list of {num_synonyms} "
-        f"synonyms for the following word of the same part of speech. "
-        f"If you run out of synonyms, you can stop. "
+        f"[INST]You must respond with only a comma seperated, single line "
+        f"list of {num_synonyms} of synonyms for the following word of the "
+        f"same part of speech. If you run out of synonyms, you can stop. "
         f"WORD: `{word}`; PART OF SPEECH: `{part_of_speech}`[/INST]"
         for word, part_of_speech in zip(words, part_of_speechs)
     ]
