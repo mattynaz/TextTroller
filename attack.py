@@ -11,18 +11,19 @@ def attack(
     prompt: str,
     true_label: int,
     importance_score_threshold: float = -1.0,
-    sim_score_threshold: float = 0.5,
+    sim_score_threshold: float = 0.1,
     sim_score_window: int = 15,
     synonym_num: int = 48,
 ):
 
     def predict(prompts: list[str]):
         responses = target_model.generate(prompts)
-        return judge_model.judge(responses)
+        return judge_model.judge(responses), responses
 
     # Get the original prediction and its confidence
-    original_label_probs = predict([prompt]).squeeze()
-    original_label = original_label_probs.argmax()
+    original_label_probs, original_response = predict([prompt])
+    original_label_probs = original_label_probs.squeeze()
+    original_label = original_label_probs.argmax().item()
     original_label_confidence = original_label_probs.max()
 
     # Return early if the original prediction is incorrect
@@ -40,7 +41,7 @@ def attack(
     # Generate perturbed versions of the original text by replacing each token with '<oov>'
     perturbed_prompts_tokens = [prompt_tokens[:i] + ['<oov>'] + prompt_tokens[i+1:] for i in range(len(prompt_tokens))]
     perturbed_prompts = [' '.join(t for t in tokens if t != '<oov>') for tokens in perturbed_prompts_tokens]
-    perturbed_labels_probs = predict(perturbed_prompts)
+    perturbed_labels_probs, _ = predict(perturbed_prompts)
     perturbed_labels = perturbed_labels_probs.argmax(dim=-1)
 
     # Calculate importance scores for each token
@@ -69,7 +70,7 @@ def attack(
         # For each synonym, create new text versions and predict their labels
         perturbed_prompts_tokens = [modified_prompt_tokens[:i] + [synonym] + modified_prompt_tokens[i+1:] for synonym in synonyms]
         perturbed_prompts = [' '.join(tokens) for tokens in perturbed_prompts_tokens]
-        perturbed_labels_probs = predict(perturbed_prompts)
+        perturbed_labels_probs, _ = predict(perturbed_prompts)
 
         # Calculate semantic similarity for potential replacements
         text_range_min, text_range_max = calculate_text_range(i, len(prompt_tokens), half_sim_score_window, sim_score_window)
@@ -77,37 +78,25 @@ def attack(
         new_variant_segments = [' '.join(tokens[text_range_min:text_range_max]) for tokens in perturbed_prompts_tokens]
         semantic_similarities = semantic_similarity.similarity([original_text_segment] * len(perturbed_prompts), new_variant_segments)
         
-        perturbed_labels_probs_mask = (original_label != perturbed_labels_probs.argmax(dim=-1)).data.cpu().numpy()
-        # prevent bad synonyms
-        perturbed_labels_probs_mask *= (semantic_similarities >= sim_score_threshold)
-        # prevent incompatible pos
-        synonyms_pos_ls = [get_pos(tokens[max(i - 4, 0):i + 5])[min(4, i)]
+        perturbed_labels_probs_mask = (original_label != perturbed_labels_probs.argmax(dim=-1)).cpu()
+        perturbed_labels_probs_mask *= (semantic_similarities >= sim_score_threshold).cpu()
+        synonyms_pos_ls = [get_pos(tokens[max(i-4, 0):i+5])[min(4, i)]
                             if len(tokens) > 10 else get_pos(tokens)[i] for tokens in perturbed_prompts_tokens]
-        pos_mask = np.array(pos_filter(prompt_tokens_pos[i], synonyms_pos_ls))
+        pos_mask = torch.tensor(pos_filter(prompt_tokens_pos[i], synonyms_pos_ls))
         perturbed_labels_probs_mask *= pos_mask
 
-        if np.sum(perturbed_labels_probs_mask) > 0:
+        if perturbed_labels_probs_mask.any().item():
             modified_prompt_tokens[i] = synonyms[(perturbed_labels_probs_mask * semantic_similarities).argmax()]
-            num_changed += 1
-            break
         else:
-            new_label_probs = perturbed_labels_probs[:, original_label] + torch.from_numpy(
-                    (semantic_similarities < sim_score_threshold) + (1 - pos_mask).astype(float)).float().cuda()
-            new_label_prob_min, new_label_prob_argmin = torch.min(new_label_probs, dim=-1)
+            new_label_probs = perturbed_labels_probs[:, original_label].cpu() + (semantic_similarities < sim_score_threshold).float() + 1 - pos_mask.float()
+            new_label_prob_min, new_label_prob_argmin = new_label_probs.min(dim=-1)
             if new_label_prob_min < original_label_confidence:
                 modified_prompt_tokens[i] = synonyms[new_label_prob_argmin]
 
-        # # Apply filters based on semantic similarity and POS compatibility
-        # valid_replacements = find_valid_replacements(perturbed_labels_probs, original_label, semantic_similarities, sim_score_threshold, synonyms, prompt_tokens, i)
-
-        # if valid_replacements:
-        #     best_replacement = valid_replacements[0]  # Assuming find_valid_replacements returns a sorted list
-        #     modified_prompt_tokens[i] = best_replacement
-        #     break  # Optionally, stop after one successful change
-
     # Finalize and return the results
-    new_label = predict([modified_prompt_tokens]).argmax().item()
-    return ' '.join(modified_prompt_tokens), original_label, new_label
+    attacked_prompt = ' '.join(modified_prompt_tokens)
+    _, attacked_response = predict([attacked_prompt])
+    return prompt, original_response, attacked_prompt, attacked_response
 
 
 def calculate_text_range(current_index, text_length, half_window_size, full_window_size):
