@@ -16,15 +16,15 @@ args = parser.parse_args()
 
 
 if __name__ == "__main__":
-    # url = "https://github.com/nmrksic/counter-fitting/raw/master/word_vectors/counter-fitted-vectors.txt.zip"
-    # response = requests.get(url)
-    # if response.status_code != 200:
-    #     raise ValueError("Failed to download the file.")
+    url = "https://github.com/nmrksic/counter-fitting/raw/master/word_vectors/counter-fitted-vectors.txt.zip"
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise ValueError("Failed to download the file.")
 
-    # zip_file = io.BytesIO(response.content)
-    # with zipfile.ZipFile(zip_file, "r") as zip_ref:
-    #     zip_ref.extractall()
-    
+    zip_file = io.BytesIO(response.content)
+    with zipfile.ZipFile(zip_file, "r") as zip_ref:
+        zip_ref.extractall()
+
     counter_fitted_vectors_file = "counter-fitted-vectors.txt"
     idx2word = {}
     word2idx = {}
@@ -40,10 +40,11 @@ if __name__ == "__main__":
         for line in file:
             embedding = [float(num) for num in line.strip().split()[1:]]
             embeddings.append(embedding)
+
     embeddings = np.array(embeddings)
-    product = np.dot(embeddings, embeddings.T)
     norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    cos_similarities = product / np.dot(norm, norm.T)
+    embeddings = np.asarray(embeddings / norm, "float32")
+    cos_similarities = np.dot(embeddings, embeddings.T)
 
     with open("idx2word.json", 'w') as file:
         json.dump(idx2word, file)
