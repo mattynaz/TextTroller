@@ -1,3 +1,6 @@
 nltk
 transformers
 torch
+tensorflow
+tensorflow_hub
+requests

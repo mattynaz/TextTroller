@@ -4,29 +4,15 @@ import numpy as np
 import criteria
 import numpy as np
 import nltk
-import tensorflow as tf
-import tensorflow_hub as hub
-
-class SimilarityPredictor():
-    def __init__(self):
-        module_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-        self.embed = hub.load(module_url)
-
-    def run(self, sentences1, sentences2):
-        sts_encode1 = tf.nn.l2_normalize(self.embed(sentences1), axis=1)
-        sts_encode2 = tf.nn.l2_normalize(self.embed(sentences2), axis=1)
-        cosine_similarities = tf.reduce_sum(tf.multiply(sts_encode1, sts_encode2), axis=1)
-        clip_cosine_similarities = tf.clip_by_value(cosine_similarities, -1.0, 1.0)
-        sim_scores = 1.0 - tf.acos(clip_cosine_similarities)
-        return sim_scores
+from similarity_predictor import SimilarityPredictor
 
 def attack(
     prompt: str,  # The list of words in the original text
     true_label,  # The correct label for the original text
     predictor,  # A function that predicts the label based on the text input
     stop_words_set,  # A set of words to ignore when looking for words to replace
-    word2idx,  # A dictionary mapping words to their indices
     idx2word,  # A dictionary mapping indices back to words
+    word2idx,  # A dictionary mapping words to their indices
     cos_sim,  # A function to compute the cosine similarity between word vectors
     similarity_predictor: SimilarityPredictor,  # A function to compute semantic similarity between texts
     importance_score_threshold=-1.0,  # Threshold for considering a word's importance score
@@ -41,7 +27,7 @@ def attack(
 
     # Return early if the original prediction is incorrect
     if true_label != original_label:
-        return "", original_label, original_label, 0
+        return prompt, original_label, original_label
     
     # Get the part-of-speech tagger and compatibility checker
     prompt_tokens = nltk.tokenize.word_tokenize(prompt)
@@ -93,8 +79,6 @@ def attack(
         new_variant_segments = [' '.join(prompt[text_range_min:text_range_max]) for prompt in perturbed_prompts]
         semantic_similarities = similarity_predictor.run([original_text_segment] * len(perturbed_prompts), new_variant_segments)
 
-        # ===== I UNDERSTAND
-
         # Apply filters based on semantic similarity and POS compatibility
         valid_replacements = find_valid_replacements(perturbed_labels_probs, original_label, semantic_similarities, sim_score_threshold, synonyms, prompt_tokens, i)
 
@@ -105,7 +89,7 @@ def attack(
 
     # Finalize and return the results
     new_label = predictor([modified_prompt_tokens]).argmax().item()
-    return ' '.join(modified_prompt_tokens), original_label, new_label, len(synonyms_for_perturbation)
+    return ' '.join(modified_prompt_tokens), original_label, new_label
 
 
 def calculate_text_range(current_index, text_length, half_window_size, full_window_size):
