@@ -12,7 +12,7 @@ def attack(
     importance_score_threshold: float = -1.0,
     sim_score_threshold: float = 0.05,
     sim_score_window: int = 15,
-    synonym_num: int = 12,
+    num_synonyms: int = 12,
 ):
     num_calls = 0
 
@@ -51,18 +51,18 @@ def attack(
     # Filter words based on importance scores and exclusion from stop words set
     importance_scores_sorted = sorted(enumerate(importance_scores), key=lambda x: x[1], reverse=True)
     perturbable_words = [
-        (i, prompt_tokens[i]) for (i, score) in importance_scores_sorted
+        (prompt_tokens[i], prompt_tokens_pos[i]) for (i, score) in importance_scores_sorted
         if score > importance_score_threshold and prompt_tokens[i] not in stop_words_set and prompt_tokens[i]
     ]
 
     # Lookup synonyms for the filtered words
-    synonyms_list, _ = pick_most_similar_words_batch(perturbable_words, synonym_num, adjusted_sim_score_threshold)
+    synonyms_list = judge_model.generate_synonyms(*list(zip(*perturbable_words)), num_synonyms)
     synonyms_for_perturbation = [
         (idx, synonyms) for (idx, _), synonyms in zip(perturbable_words, synonyms_list) if synonyms
     ]
     
     # Attempt to replace words with their synonyms to alter the model's prediction
-    modified_prompt_tokens = prompt_tokens.copy()  # Initialize modified text with original text
+    modified_prompt_tokens = prompt_tokens.copy()
     for i, synonyms in synonyms_for_perturbation:
         # For each synonym, create new text versions and predict their labels
         perturbed_prompts_tokens = [modified_prompt_tokens[:i] + [synonym] + modified_prompt_tokens[i+1:] for synonym in synonyms]
