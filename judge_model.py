@@ -15,7 +15,7 @@ def judge(texts: list[str]):
     ]
     inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
     with torch.no_grad():
-        outputs = model(inputs)
+        outputs = model(**inputs)
     logits = outputs.logits
 
     yes_id = tokenizer.encode("YES", add_special_tokens=False)[0]
