@@ -16,6 +16,7 @@ args = parser.parse_args()
 
 
 if __name__ == "__main__":
+    print("Downloading the counter-fitted embeddings...")
     url = "https://github.com/nmrksic/counter-fitting/raw/master/word_vectors/counter-fitted-vectors.txt.zip"
     response = requests.get(url)
     if response.status_code != 200:
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     with zipfile.ZipFile(zip_file, "r") as zip_ref:
         zip_ref.extractall()
 
+    print("Creating idx-word mappings...")
     counter_fitted_vectors_file = "counter-fitted-vectors.txt"
     idx2word = {}
     word2idx = {}
@@ -35,6 +37,7 @@ if __name__ == "__main__":
                 idx2word[len(idx2word)] = word
                 word2idx[word] = len(idx2word) - 1
 
+    print("Creating cos similarities matrix...")
     embeddings = []
     with open(counter_fitted_vectors_file, 'r') as file:
         for line in file:
@@ -46,6 +49,7 @@ if __name__ == "__main__":
     embeddings = np.asarray(embeddings / norm, "float32")
     cos_similarities = np.dot(embeddings, embeddings.T)
 
+    print("Saving everything...")
     with open("idx2word.json", 'w') as file:
         json.dump(idx2word, file)
         
@@ -53,3 +57,5 @@ if __name__ == "__main__":
         json.dump(word2idx, file)
 
     np.save(('cos_similarities.npy'), cos_similarities)
+    
+    print("Done!")
