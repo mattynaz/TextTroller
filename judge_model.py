@@ -7,6 +7,7 @@ model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2
 tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", sliding_window=4096)
 tokenizer.pad_token = tokenizer.eos_token
 
+
 def judge(responses: list[str], original_prompt: str) -> torch.Tensor:
     prompts = [
         f"[INST]You must respond with only either 'YES' or 'NO'. "
@@ -26,6 +27,7 @@ def judge(responses: list[str], original_prompt: str) -> torch.Tensor:
     probs = torch.nn.functional.softmax(logits_for_yes_no, dim=-1)
 
     return probs
+
 
 def generate_synonyms(words: list[str], part_of_speechs: list[str], num_synonyms: int) -> list[list[str]]:
     prompts = [
