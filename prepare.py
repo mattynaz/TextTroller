@@ -16,19 +16,19 @@ args = parser.parse_args()
 
 
 if __name__ == "__main__":
-    url = "https://github.com/nmrksic/counter-fitting/raw/master/word_vectors/counter-fitted-vectors.txt.zip"
-    response = requests.get(url)
-    if response.status_code != 200:
-        raise ValueError("Failed to download the file.")
+    # url = "https://github.com/nmrksic/counter-fitting/raw/master/word_vectors/counter-fitted-vectors.txt.zip"
+    # response = requests.get(url)
+    # if response.status_code != 200:
+    #     raise ValueError("Failed to download the file.")
 
-    zip_file = io.BytesIO(response.content)
-    with zipfile.ZipFile(zip_file, "r") as zip_ref:
-        zip_ref.extractall()
+    # zip_file = io.BytesIO(response.content)
+    # with zipfile.ZipFile(zip_file, "r") as zip_ref:
+    #     zip_ref.extractall()
     
-    unzipped_file = "counter-fitted-vectors.txt"
+    counter_fitted_vectors_file = "counter-fitted-vectors.txt"
     idx2word = {}
     word2idx = {}
-    with open(unzipped_file, 'r') as file:
+    with open(counter_fitted_vectors_file, 'r') as file:
         for line in file:
             word = line.split()[0]
             if word not in idx2word:
@@ -36,7 +36,7 @@ if __name__ == "__main__":
                 word2idx[word] = len(idx2word) - 1
 
     embeddings = []
-    with open(unzipped_file, 'r') as file:
+    with open(counter_fitted_vectors_file, 'r') as file:
         for line in file:
             embedding = [float(num) for num in line.strip().split()[1:]]
             embeddings.append(embedding)
