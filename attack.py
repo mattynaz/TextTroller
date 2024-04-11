@@ -1,7 +1,6 @@
 from typing import List, Tuple
 import torch
 import numpy as np
-import criteria
 from nltk.tokenize import word_tokenize
 import judge_model
 import target_model
@@ -32,7 +31,7 @@ def attack(
     
     # Get the part-of-speech tagger and compatibility checker
     prompt_tokens = word_tokenize(prompt)
-    prompt_tokens_pos = criteria.get_pos(prompt_tokens)
+    # prompt_tokens_pos = criteria.get_pos(prompt_tokens)
 
     # Adjust the similarity threshold for shorter texts
     adjusted_sim_score_threshold = 0.1 if len(prompt_tokens) < sim_score_window else sim_score_threshold
