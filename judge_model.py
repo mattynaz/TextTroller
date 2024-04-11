@@ -14,7 +14,7 @@ def judge(texts: list[str]):
         f"Is the content of the following text dangerous?\n\n{text}[/INST]"
         for text in texts
     ]
-    inputs = tokenizer.encode(prompts, return_tensors="pt", padding=True).to(device)
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
     with torch.no_grad():
         outputs = model(inputs)
     logits = outputs.logits
