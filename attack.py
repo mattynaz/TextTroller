@@ -1,11 +1,10 @@
-from typing import List, Tuple
 import torch
-import numpy as np
 from nltk.tokenize import word_tokenize
 import judge_model
 import target_model
 import semantic_similarity
-from util import stop_words_set, get_pos, pos_filter, index_to_word, word_to_index, similarity_matrix
+from util import stop_words_set, get_pos
+
 
 def attack(
     prompt: str,
@@ -50,20 +49,20 @@ def attack(
 
     # Filter words based on importance scores and exclusion from stop words set
     importance_scores_sorted = sorted(enumerate(importance_scores), key=lambda x: x[1], reverse=True)
-    perturbable_words = [
-        (prompt_tokens[i], prompt_tokens_pos[i]) for (i, score) in importance_scores_sorted
+    perturbable_words_idxs = [
+        i for (i, score) in importance_scores_sorted
         if score > importance_score_threshold and prompt_tokens[i] not in stop_words_set and prompt_tokens[i]
     ]
 
     # Lookup synonyms for the filtered words
-    synonyms_list = judge_model.generate_synonyms(*list(zip(*perturbable_words)), num_synonyms)
-    synonyms_for_perturbation = [
-        (idx, synonyms) for (idx, _), synonyms in zip(perturbable_words, synonyms_list) if synonyms
-    ]
-    
+    perturbable_words = [prompt_tokens[i] for i in perturbable_words_idxs]
+    perturbable_words_pos = [prompt_tokens_pos[i] for i in perturbable_words_idxs]
+    synonyms_list = judge_model.generate_synonyms(perturbable_words, perturbable_words_pos, num_synonyms)
+    num_calls += len(synonyms_list)
+
     # Attempt to replace words with their synonyms to alter the model's prediction
     modified_prompt_tokens = prompt_tokens.copy()
-    for i, synonyms in synonyms_for_perturbation:
+    for i, synonyms in zip(perturbable_words_idxs, synonyms_list):
         # For each synonym, create new text versions and predict their labels
         perturbed_prompts_tokens = [modified_prompt_tokens[:i] + [synonym] + modified_prompt_tokens[i+1:] for synonym in synonyms]
         perturbed_prompts = [' '.join(tokens) for tokens in perturbed_prompts_tokens]
@@ -77,15 +76,11 @@ def attack(
         
         perturbed_labels_probs_mask = (original_label != perturbed_labels_probs.argmax(dim=-1)).cpu()
         perturbed_labels_probs_mask *= (semantic_similarities >= sim_score_threshold).cpu()
-        synonyms_pos_ls = [get_pos(tokens[max(i-4, 0):i+5])[min(4, i)]
-                            if len(tokens) > 10 else get_pos(tokens)[i] for tokens in perturbed_prompts_tokens]
-        pos_mask = torch.tensor(pos_filter(prompt_tokens_pos[i], synonyms_pos_ls))
-        perturbed_labels_probs_mask *= pos_mask
 
         if perturbed_labels_probs_mask.any().item():
             modified_prompt_tokens[i] = synonyms[(perturbed_labels_probs_mask * semantic_similarities).argmax()]
         else:
-            new_label_probs = perturbed_labels_probs[:, original_label].cpu() + (semantic_similarities < sim_score_threshold).float() + 1 - pos_mask.float()
+            new_label_probs = perturbed_labels_probs[:, original_label].cpu() + (semantic_similarities < sim_score_threshold).float()
             new_label_prob_min, new_label_prob_argmin = new_label_probs.min(dim=-1)
             if new_label_prob_min < original_label_confidence:
                 modified_prompt_tokens[i] = synonyms[new_label_prob_argmin]
@@ -112,50 +107,3 @@ def calculate_text_range(current_index, text_length, half_window_size, full_wind
         start_index = max(0, text_length - full_window_size)
 
     return start_index, end_index
-
-
-def find_valid_replacements(new_probs, original_pred_label, semantic_sims, sim_score_threshold, synonyms, original_text, idx):
-    valid_replacements = []
-
-    for i, (synonym, sim_score) in enumerate(zip(synonyms, semantic_sims)):
-        if sim_score >= sim_score_threshold:
-            # Ensure the new prediction differs from the original and meets the semantic similarity threshold
-            if new_probs[i].argmax() != original_pred_label:
-                # Check part-of-speech compatibility
-                original_word_pos = get_pos(original_text[idx])
-                synonym_pos = get_pos(synonym)
-                if pos_filter(original_word_pos, synonym_pos):
-                    valid_replacements.append(synonym)
-    
-    return valid_replacements
-
-
-def pick_most_similar_words_batch(
-    source_words: List[int], 
-    return_count: int = 10, 
-    similarity_threshold: float = 0.0
-) -> Tuple[List[List[str]], List[np.ndarray]]:
-    source_word_indices = [word_to_index[word] for _, word in source_words if word in word_to_index]
-    
-    # Determine the top most similar word indices for each source word, including the source word itself.
-    top_indices = np.argsort(-similarity_matrix[source_word_indices, :], axis=1)[:, :return_count + 1]
-
-    similar_words_batch: List[List[str]] = []
-    similarity_scores_batch: List[np.ndarray] = []
-    for idx, word_index in enumerate(source_word_indices):
-        # Extract indices and scores for the top similar words, excluding the source word itself.
-        top_similar_indices = top_indices[idx]
-        scores = similarity_matrix[word_index, top_similar_indices]
-
-        # Filter based on the similarity threshold.
-        valid_scores_mask = scores >= similarity_threshold
-        filtered_indices = top_similar_indices[valid_scores_mask]
-        filtered_scores = scores[valid_scores_mask]
-
-        # Convert word indices to their corresponding strings, excluding the source word.
-        similar_words = [index_to_word[i] for i in filtered_indices if i != word_index]
-
-        similar_words_batch.append(similar_words)
-        similarity_scores_batch.append(filtered_scores)
-
-    return similar_words_batch, similarity_scores_batch
