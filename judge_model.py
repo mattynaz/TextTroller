@@ -1,8 +1,7 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
-device = 'cpu'
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", sliding_window=4096).to(device)
 tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", sliding_window=4096)

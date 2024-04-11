@@ -109,19 +109,19 @@ def calculate_text_range(current_index, text_length, half_window_size, full_wind
     return start_index, end_index
 
 
-def find_valid_replacements(new_probs, original_pred_label, semantic_sims, sim_threshold, synonyms, original_text, idx, pos_tagger, pos_compatibility_checker):
+def find_valid_replacements(new_probs, original_pred_label, semantic_sims, sim_score_threshold, synonyms, original_text, idx):
     valid_replacements = []
 
     for i, (synonym, sim_score) in enumerate(zip(synonyms, semantic_sims)):
-        if sim_score >= sim_threshold:
+        if sim_score >= sim_score_threshold:
             # Ensure the new prediction differs from the original and meets the semantic similarity threshold
             if new_probs[i].argmax() != original_pred_label:
                 # Check part-of-speech compatibility
-                original_word_pos = pos_tagger(original_text[idx])
-                synonym_pos = pos_tagger(synonym)
-                if pos_compatibility_checker(original_word_pos, synonym_pos):
+                original_word_pos = get_pos(original_text[idx])
+                synonym_pos = get_pos(synonym)
+                if pos_filter(original_word_pos, synonym_pos):
                     valid_replacements.append(synonym)
-
+    
     return valid_replacements
 
 
