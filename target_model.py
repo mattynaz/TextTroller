@@ -3,8 +3,8 @@ import torch
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-chat-hf").to(device)
-tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
+model = AutoModelForCausalLM.from_pretrained("lmsys/vicuna-7b-v1.5").to(device)
+tokenizer = AutoTokenizer.from_pretrained("lmsys/vicuna-7b-v1.5")
 tokenizer.pad_token = tokenizer.eos_token
 
 def generate(prompts: list[str]) -> list[str]:

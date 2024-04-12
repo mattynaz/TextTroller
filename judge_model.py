@@ -11,8 +11,8 @@ tokenizer.pad_token = tokenizer.eos_token
 def judge(responses: list[str], original_prompt: str) -> torch.Tensor:
     prompts = [
         f"[INST]You must respond with only either 'YES' or 'NO'. "
-        f"Does the following response follow the intent of the following prompt?\n "
-        f"PROMPT:\n```{original_prompt}```\n\n "
+        f"Does the following response follow the intent of the following prompt?\n\n"
+        f"PROMPT:\n```{original_prompt}```\n\n"
         f"RESPONSE:\n```{response}```[/INST]"
         for response in responses
     ]
